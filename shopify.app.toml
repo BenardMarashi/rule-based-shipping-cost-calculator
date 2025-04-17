@@ -3,7 +3,7 @@
 client_id = "923a2370d32ef8ec9424ed8ab53e8bd0"
 name = "shipping-cost-calculator"
 handle = "shipping-cost-calculator-1"
-application_url = "https://example.com/"
+application_url = "https://hiking-h-ranked-deck.trycloudflare.com"
 embedded = true
 
 [build]
@@ -25,7 +25,10 @@ api_version = "2025-04"
 scopes = "write_products"
 
 [auth]
-redirect_urls = [ "https://example.com/api/auth" ]
+redirect_urls = [
+  "https://hiking-h-ranked-deck.trycloudflare.com/auth/callback",
+  "https://hiking-h-ranked-deck.trycloudflare.com/api/auth/callback"
+]
 
 [pos]
 embedded = false
