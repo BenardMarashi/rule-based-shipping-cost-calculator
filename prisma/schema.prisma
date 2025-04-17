@@ -1,13 +1,8 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
+// prisma/schema.prisma
 generator client {
   provider = "prisma-client-js"
 }
 
-// Note that some adapters may set a maximum length for the String type by default, please ensure your strings are long
-// enough when changing adapters.
-// See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
 datasource db {
   provider = "sqlite"
   url      = "file:dev.sqlite"
@@ -29,4 +24,14 @@ model Session {
   locale        String?
   collaborator  Boolean?  @default(false)
   emailVerified Boolean?  @default(false)
+}
+
+model Carrier {
+  id          String    @id @default(uuid())
+  name        String
+  maxWeight   Float     // Maximum weight in kg
+  baseCost    Float     // Base cost in cents
+  costPerKg   Float     // Additional cost per kg in cents
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }

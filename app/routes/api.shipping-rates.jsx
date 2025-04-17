@@ -1,4 +1,6 @@
+// app/routes/api.shipping-rates.jsx
 import { json } from "@remix-run/node";
+import { splitParcels, selectBestCarrier } from "../services/shipping-calculator.server";
 
 export async function action({ request }) {
   try {
@@ -10,23 +12,22 @@ export async function action({ request }) {
     const { rate } = data;
     const items = rate.items || [];
     
-    // Calculate the total weight in grams
-    const totalWeightGrams = items.reduce(
-      (sum, item) => sum + (item.grams * item.quantity),
-      0
-    );
+    // Configure DPD's max weight (31.5kg = 31500g)
+    const maxWeight = 31500;
     
-    // Convert to kg
-    const totalWeightKg = totalWeightGrams / 1000;
+    // Split items into parcels
+    const parcels = splitParcels(items, maxWeight);
     
-    // For MVP, just provide a simple fixed rate
-    // In a real app, you would calculate based on weight, destination, etc.
+    // Select the best carrier
+    const bestCarrier = await selectBestCarrier(parcels);
+    
+    // Format the response as expected by Shopify
     const shippingRate = {
-      service_name: "Standard Shipping",
-      service_code: "standard",
-      total_price: 1000, // $10.00
-      description: "Standard shipping (MVP)",
-      currency: "USD",
+      service_name: `${bestCarrier.name} (${parcels.length} ${parcels.length === 1 ? 'parcel' : 'parcels'})`,
+      service_code: bestCarrier.name.toLowerCase().replace(/\s+/g, '_'),
+      total_price: Math.round(bestCarrier.totalCost),
+      description: `Optimized shipping with ${parcels.length} ${parcels.length === 1 ? 'parcel' : 'parcels'}`,
+      currency: bestCarrier.currency,
     };
     
     console.log("Returning shipping rate:", shippingRate);
@@ -34,7 +35,15 @@ export async function action({ request }) {
     return json({ rates: [shippingRate] });
   } catch (error) {
     console.error("Error calculating shipping rates:", error);
-    // Return an empty rates array to avoid breaking the checkout
-    return json({ rates: [] });
+    // Return a fallback rate to avoid breaking the checkout
+    return json({ 
+      rates: [{
+        service_name: "Standard Shipping",
+        service_code: "standard",
+        total_price: 1000, // $10.00
+        description: "Standard shipping (fallback)",
+        currency: "USD",
+      }] 
+    });
   }
 }

@@ -16,3 +16,15 @@ CREATE TABLE "Session" (
     "collaborator" BOOLEAN DEFAULT false,
     "emailVerified" BOOLEAN DEFAULT false
 );
+
+-- prisma/migrations/20250417000000_create_carrier_table/migration.sql
+-- CreateTable
+CREATE TABLE "Carrier" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "name" TEXT NOT NULL,
+    "maxWeight" REAL NOT NULL,
+    "baseCost" REAL NOT NULL,
+    "costPerKg" REAL NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
+);
