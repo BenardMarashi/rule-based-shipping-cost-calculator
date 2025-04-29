@@ -1,23 +1,5 @@
--- CreateTable
-CREATE TABLE "Session" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "shop" TEXT NOT NULL,
-    "state" TEXT NOT NULL,
-    "isOnline" BOOLEAN NOT NULL DEFAULT false,
-    "scope" TEXT,
-    "expires" DATETIME,
-    "accessToken" TEXT NOT NULL,
-    "userId" BIGINT,
-    "firstName" TEXT,
-    "lastName" TEXT,
-    "email" TEXT,
-    "accountOwner" BOOLEAN NOT NULL DEFAULT false,
-    "locale" TEXT,
-    "collaborator" BOOLEAN DEFAULT false,
-    "emailVerified" BOOLEAN DEFAULT false
-);
+-- prisma/migrations/20250429000000_create_carrier_tables/migration.sql
 
--- prisma/migrations/20250417000000_create_carrier_table/migration.sql
 -- CreateTable
 CREATE TABLE "Carrier" (
     "id" TEXT NOT NULL PRIMARY KEY,
@@ -55,4 +37,6 @@ CREATE TABLE "WeightRate" (
 
 -- CreateIndex
 CREATE INDEX "CountryRate_carrierId_idx" ON "CountryRate"("carrierId");
+
+-- CreateIndex
 CREATE INDEX "WeightRate_countryRateId_idx" ON "WeightRate"("countryRateId");

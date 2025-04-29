@@ -166,6 +166,34 @@ export async function addCountryRate(carrierId, { countryCode, countryName, deli
 }
 
 /**
+ * Get country rates for a carrier
+ * @param {string} carrierId Carrier ID
+ * @returns {Promise<Array>} List of country rates
+ */
+export async function getCountryRates(carrierId) {
+  if (!carrierId) throw new Error("Carrier ID is required");
+  
+  try {
+    return await prisma.countryRate.findMany({
+      where: { carrierId },
+      include: {
+        weightRates: {
+          orderBy: {
+            minWeight: 'asc'
+          }
+        }
+      },
+      orderBy: {
+        countryName: 'asc'
+      }
+    });
+  } catch (error) {
+    console.error(`Error retrieving country rates for carrier ${carrierId}:`, error);
+    return [];
+  }
+}
+
+/**
  * Update a country rate
  * @param {string} id Country rate ID
  * @param {Object} data Country rate data
@@ -289,5 +317,26 @@ export async function deleteWeightRate(id) {
   } catch (error) {
     console.error(`Error deleting weight rate ${id}:`, error);
     throw new Error(`Failed to delete weight rate: ${error.message}`);
+  }
+}
+
+/**
+ * Get all weight rates for a country
+ * @param {string} countryRateId Country rate ID
+ * @returns {Promise<Array>} List of weight rates
+ */
+export async function getWeightRates(countryRateId) {
+  if (!countryRateId) throw new Error("Country rate ID is required");
+  
+  try {
+    return await prisma.weightRate.findMany({
+      where: { countryRateId },
+      orderBy: {
+        minWeight: 'asc'
+      }
+    });
+  } catch (error) {
+    console.error(`Error retrieving weight rates for country ${countryRateId}:`, error);
+    return [];
   }
 }

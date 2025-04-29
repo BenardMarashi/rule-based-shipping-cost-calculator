@@ -47,6 +47,8 @@ model CountryRate {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   weightRates WeightRate[]
+
+  @@index([carrierId])
 }
 
 model WeightRate {
@@ -58,4 +60,6 @@ model WeightRate {
   price         Float     // Price in cents
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+
+  @@index([countryRateId])
 }
