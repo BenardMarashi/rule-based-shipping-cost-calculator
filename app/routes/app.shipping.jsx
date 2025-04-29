@@ -13,13 +13,10 @@ import {
   DataTable,
   Modal,
   InlineStack,
-  Icon,
-  Link,
   EmptyState,
   Badge,
   SkeletonBodyText,
-  Tooltip,
-  CalloutCard,
+  CalloutCard
 } from "@shopify/polaris";
 import { TitleBar } from "@shopify/app-bridge-react";
 import { useSubmit, useActionData, useLoaderData, useNavigation } from "@remix-run/react";
@@ -249,47 +246,6 @@ export default function ShippingCalculator() {
             </Card>
           </Layout.Section>
           
-          <Layout.Section>
-            <Card>
-              <BlockStack gap="400">
-                <InlineStack align="space-between">
-                  <Text as="h2" variant="headingMd">
-                    Carrier Management
-                  </Text>
-                  <Button 
-                    primary 
-                    onClick={() => handleOpenModal()}
-                    disabled={isLoading}
-                  >
-                    Add Carrier
-                  </Button>
-                </InlineStack>
-                
-                {isLoading && carriers.length === 0 ? (
-                  <SkeletonBodyText lines={5} />
-                ) : carriers.length > 0 ? (
-                  <DataTable
-                    columnContentTypes={["text", "text", "text", "text", "text"]}
-                    headings={["Carrier Name", "Max Weight", "Base Cost", "Cost per kg", "Actions"]}
-                    rows={rows}
-                    footerContent={`${carriers.length} ${carriers.length === 1 ? 'carrier' : 'carriers'}`}
-                  />
-                ) : (
-                  <EmptyState
-                    heading="No carriers configured yet"
-                    image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
-                    action={{
-                      content: 'Add carrier',
-                      onAction: () => handleOpenModal(),
-                    }}
-                  >
-                    <p>Add your first carrier to start using the shipping calculator</p>
-                  </EmptyState>
-                )}
-              </BlockStack>
-            </Card>
-          </Layout.Section>
-          
           <Layout.Section oneThird>
             <Card>
               <BlockStack gap="400">
@@ -327,6 +283,47 @@ export default function ShippingCalculator() {
             </Card>
           </Layout.Section>
         </Layout>
+        
+        <Card>
+          <Card.Section>
+            <BlockStack gap="400">
+              <InlineStack align="space-between">
+                <Text as="h2" variant="headingMd">
+                  Carrier Management
+                </Text>
+                <Button 
+                  primary 
+                  onClick={() => handleOpenModal()}
+                  disabled={isLoading}
+                >
+                  Add Carrier
+                </Button>
+              </InlineStack>
+              
+              {isLoading && carriers.length === 0 ? (
+                <SkeletonBodyText lines={5} />
+              ) : carriers.length > 0 ? (
+                <DataTable
+                  columnContentTypes={["text", "text", "text", "text", "text"]}
+                  headings={["Carrier Name", "Max Weight", "Base Cost", "Cost per kg", "Actions"]}
+                  rows={rows}
+                  footerContent={`${carriers.length} ${carriers.length === 1 ? 'carrier' : 'carriers'}`}
+                />
+              ) : (
+                <EmptyState
+                  heading="No carriers configured yet"
+                  image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+                  action={{
+                    content: 'Add carrier',
+                    onAction: () => handleOpenModal(),
+                  }}
+                >
+                  <p>Add your first carrier to start using the shipping calculator</p>
+                </EmptyState>
+              )}
+            </BlockStack>
+          </Card.Section>
+        </Card>
       </BlockStack>
       
       <Modal

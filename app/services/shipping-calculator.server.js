@@ -126,11 +126,29 @@ function optimizeParcels(parcels, maxWeight) {
 }
 
 /**
- * Calculate shipping cost for all parcels per carrier
+ * Find the appropriate weight rate for a given weight
+ * @param {Array} weightRates - Weight rates for a country
+ * @param {Number} weightKg - Weight in kg
+ * @returns {Object|null} - Weight rate or null if not found
+ */
+function findWeightRate(weightRates, weightKg) {
+  if (!weightRates || weightRates.length === 0) {
+    return null;
+  }
+  
+  // Find the first weight rate that covers this weight
+  return weightRates.find(rate => 
+    weightKg >= rate.minWeight && weightKg <= rate.maxWeight
+  ) || null;
+}
+
+/**
+ * Calculate shipping cost for all parcels per carrier, considering country rates
  * @param {Array} parcels - Array of parcels with weights
+ * @param {String} destinationCountry - Destination country code
  * @returns {Object} - Carrier with lowest total cost
  */
-export async function selectBestCarrier(parcels) {
+export async function selectBestCarrier(parcels, destinationCountry = "AT") {
   const carriers = await getCarriers();
   
   if (!carriers || carriers.length === 0) {
@@ -147,6 +165,13 @@ export async function selectBestCarrier(parcels) {
     let totalCost = 0;
     let eligibleParcels = [];
     let oversizedParcels = [];
+    let useBasicRates = true;
+    let deliveryTime = null;
+    
+    // Look for country-specific rates
+    const countryRate = carrier.countries?.find(c => 
+      c.countryCode === destinationCountry
+    );
     
     // Check each parcel against this carrier's weight limit
     parcels.forEach(parcel => {
@@ -154,7 +179,25 @@ export async function selectBestCarrier(parcels) {
       
       // If parcel is within this carrier's weight limit
       if (weightKg <= carrier.maxWeight) {
-        const parcelCost = carrier.baseCost + (weightKg * carrier.costPerKg);
+        let parcelCost = 0;
+        
+        // If we have country-specific rates, use them
+        if (countryRate && countryRate.weightRates && countryRate.weightRates.length > 0) {
+          const weightRate = findWeightRate(countryRate.weightRates, weightKg);
+          
+          if (weightRate) {
+            useBasicRates = false;
+            parcelCost = weightRate.price;
+            deliveryTime = countryRate.deliveryTime;
+          } else {
+            // Fallback to basic rate if we can't find a specific weight rate
+            parcelCost = carrier.baseCost + (weightKg * carrier.costPerKg);
+          }
+        } else {
+          // Use basic rate
+          parcelCost = carrier.baseCost + (weightKg * carrier.costPerKg);
+        }
+        
         totalCost += parcelCost;
         eligibleParcels.push(parcel);
       } else {
@@ -174,6 +217,8 @@ export async function selectBestCarrier(parcels) {
       oversizedParcels,
       numberOfParcels: parcels.length,
       isEligible,
+      useBasicRates,
+      deliveryTime,
       currency: "USD" // Default currency
     };
   });
