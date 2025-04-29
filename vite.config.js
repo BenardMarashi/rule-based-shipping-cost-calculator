@@ -39,11 +39,12 @@ if (host === "localhost") {
 
 export default defineConfig({
   server: {
-    allowedHosts: [host],
+    allowedHosts: [host, "cumulative-antibody-stanley-permitted.trycloudflare.com", "*.trycloudflare.com"],
     cors: {
       preflightContinue: true,
     },
-    port: Number(process.env.PORT || 3000),
+    port: 3000, // Fixed port
+    strictPort: true, // Force to use this port only
     hmr: hmrConfig,
     fs: {
       // See https://vitejs.dev/config/server-options.html#server-fs-allow for more information

@@ -1,24 +1,31 @@
 // dev.js
-const { spawn } = require('child_process');
-const { promisify } = require('util');
-const sleep = promisify(setTimeout);
+import { spawn } from 'child_process';
+import { setTimeout } from 'timers/promises';
+import { join } from 'path';
 
 async function startDevelopment() {
   console.log('Starting Shopify app development server...');
   
+  // Use the npm executable with its full path on Windows
+  const isWindows = process.platform === 'win32';
+  const npmCmd = isWindows ? 'npm.cmd' : 'npm';
+  const cloudflaredCmd = isWindows ? 'cloudflared.exe' : 'cloudflared';
+  
   // Start the app in development mode
-  const shopifyApp = spawn('npm', ['run', 'dev'], {
-    stdio: 'inherit'
+  const shopifyApp = spawn(npmCmd, ['run', 'dev'], {
+    stdio: 'inherit',
+    shell: isWindows
   });
   
   // Wait for the app to start
   console.log('Waiting for app to initialize (15 seconds)...');
-  await sleep(15000);
+  await setTimeout(15000);
   
   console.log('Starting Cloudflare tunnel...');
   // Start the Cloudflare tunnel
-  const cloudflare = spawn('cloudflared', ['tunnel', '--url', 'http://localhost:3000'], {
-    stdio: 'inherit'
+  const cloudflare = spawn(cloudflaredCmd, ['tunnel', '--url', 'http://localhost:3000'], {
+    stdio: 'inherit',
+    shell: isWindows
   });
   
   // Handle process termination
