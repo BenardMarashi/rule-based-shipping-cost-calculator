@@ -39,7 +39,7 @@ if (host === "localhost") {
 
 export default defineConfig({
   server: {
-    allowedHosts: [host, "cumulative-antibody-stanley-permitted.trycloudflare.com", "*.trycloudflare.com"],
+    allowedHosts: [host, "stake-expected-urls-brunei.trycloudflare.com", "*.trycloudflare.com"],
     cors: {
       preflightContinue: true,
     },

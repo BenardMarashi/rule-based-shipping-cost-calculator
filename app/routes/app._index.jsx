@@ -63,25 +63,7 @@ export default function Index() {
             </Card>
           </Layout.Section>
           
-          <Layout.Section oneThird>
-            <BlockStack gap="500">
-              <Card>
-                <BlockStack gap="200">
-                  <Text as="h2" variant="headingMd">
-                    Quick Links
-                  </Text>
-                  <List>
-                    <List.Item>
-                      <Link url="/app/shipping">Shipping Calculator Setup</Link>
-                    </List.Item>
-                    <List.Item>
-                      <Link url="/app/shipping">Carrier Management</Link>
-                    </List.Item>
-                  </List>
-                </BlockStack>
-              </Card>
-            </BlockStack>
-          </Layout.Section>
+          
         </Layout>
         
         <Card>

@@ -3,7 +3,7 @@
 client_id = "923a2370d32ef8ec9424ed8ab53e8bd0"
 name = "shipping-cost-calculator"
 handle = "shipping-cost-calculator-1"
-application_url = "https://cumulative-antibody-stanley-permitted.trycloudflare.com"
+application_url = "https://stake-expected-urls-brunei.trycloudflare.com"
 embedded = true
 
 [build]
@@ -27,8 +27,8 @@ scopes = "write_products,write_shipping"
 
 [auth]
 redirect_urls = [
-  "https://cumulative-antibody-stanley-permitted.trycloudflare.com/auth/callback",
-  "https://cumulative-antibody-stanley-permitted.trycloudflare.com/api/auth/callback"
+  "https://stake-expected-urls-brunei.trycloudflare.com/auth/callback",
+  "https://stake-expected-urls-brunei.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]
