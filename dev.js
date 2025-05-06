@@ -66,7 +66,9 @@ async function startDevelopment() {
       'tunnel', 
       '--url', 'http://localhost:3000',
       '--no-autoupdate',
-      '--metrics', 'localhost:8099'
+      '--metrics', 'localhost:8099',
+      '--protocol', 'http2', // Try adding this
+      '--timeout', '5m',
     ], {
       stdio: 'inherit',
       shell: isWindows

@@ -3,7 +3,7 @@
 client_id = "923a2370d32ef8ec9424ed8ab53e8bd0"
 name = "shipping-cost-calculator"
 handle = "shipping-cost-calculator-1"
-application_url = "https://life-naples-experiences-monitors.trycloudflare.com"
+application_url = "https://nec-wild-gt-increased.trycloudflare.com"
 embedded = true
 
 [build]
@@ -27,8 +27,8 @@ scopes = "write_products,write_shipping"
 
 [auth]
 redirect_urls = [
-  "https://life-naples-experiences-monitors.trycloudflare.com/auth/callback",
-  "https://life-naples-experiences-monitors.trycloudflare.com/api/auth/callback"
+  "https://nec-wild-gt-increased.trycloudflare.com/auth/callback",
+  "https://nec-wild-gt-increased.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]

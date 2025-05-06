@@ -37,7 +37,7 @@ if (host === "localhost") {
 export default defineConfig({
   server: {
     host: "localhost", // Bind to localhost only
-    allowedHosts: [host, "life-naples-experiences-monitors.trycloudflare.com", "*.trycloudflare.com"],
+    allowedHosts: [host, "nec-wild-gt-increased.trycloudflare.com", "*.trycloudflare.com"],
     cors: {
       preflightContinue: true,
     },
