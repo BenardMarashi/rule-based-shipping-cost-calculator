@@ -5,9 +5,6 @@ import tsconfigPaths from "vite-tsconfig-paths";
 
 installGlobals({ nativeFetch: true });
 
-// Related: https://github.com/remix-run/remix/issues/2835#issuecomment-1144102176
-// Replace the HOST env var with SHOPIFY_APP_URL so that it doesn't break the remix server. The CLI will eventually
-// stop passing in HOST, so we can remove this workaround after the next major release.
 if (
   process.env.HOST &&
   (!process.env.SHOPIFY_APP_URL ||
@@ -24,7 +21,7 @@ let hmrConfig;
 if (host === "localhost") {
   hmrConfig = {
     protocol: "ws",
-    host: "localhost",
+    host: "localhost", // Use localhost instead of an IP
     port: 64999,
     clientPort: 64999,
   };
@@ -39,15 +36,15 @@ if (host === "localhost") {
 
 export default defineConfig({
   server: {
-    allowedHosts: [host, "stake-expected-urls-brunei.trycloudflare.com", "*.trycloudflare.com"],
+    host: "localhost", // Bind to localhost only
+    allowedHosts: [host, "life-naples-experiences-monitors.trycloudflare.com", "*.trycloudflare.com"],
     cors: {
       preflightContinue: true,
     },
-    port: 3000, // Fixed port
-    strictPort: true, // Force to use this port only
+    port: 3000,
+    strictPort: true,
     hmr: hmrConfig,
     fs: {
-      // See https://vitejs.dev/config/server-options.html#server-fs-allow for more information
       allow: ["app", "node_modules"],
     },
   },

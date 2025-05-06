@@ -1,6 +1,6 @@
-// app/routes/api.shipping-rates.jsx
+// app/routes/api.shipping-rates.jsx - Updated to show multiple carriers
 import { json } from "@remix-run/node";
-import { splitParcels, selectBestCarrier } from "../services/shipping-calculator.server";
+import { splitParcels } from "../services/shipping-calculator.server";
 import { getCarriers } from "../models/carrier.server";
 
 // Map from Shopify country codes to our country codes
@@ -62,49 +62,111 @@ export async function action({ request }) {
         rates: [{
           service_name: "Standard Shipping",
           service_code: "standard",
-          total_price: 1000, // $10.00
+          total_price: 1000, // €10.00
           description: "Standard shipping (no carriers configured)",
-          currency: "USD",
+          currency: "EUR",
         }]
       });
     }
     
-    // Use the highest max weight as our constraint
-    const maxWeight = Math.max(...carriers.map(carrier => carrier.maxWeight * 1000)); // Convert kg to g
-    console.log(`Using max weight constraint: ${maxWeight}g`);
-    
-    // Split items into parcels
-    const parcels = splitParcels(items, maxWeight);
-    console.log(`Split order into ${parcels.length} parcels`);
-    
-    // Find the best carrier for this destination
-    const bestCarrier = await selectBestCarrier(parcels, mappedCountryCode);
-    console.log(`Selected carrier: ${bestCarrier.name}`);
+    // Initialize array for all shipping rates
+    const shippingRates = [];
     
     // Calculate the total weight for display
     const totalWeight = items.reduce((sum, item) => sum + (item.grams * item.quantity), 0) / 1000; // in kg
     
-    // Build the service description
-    let description = `Optimized shipping for ${totalWeight.toFixed(2)}kg in ${parcels.length} ${parcels.length === 1 ? 'parcel' : 'parcels'}`;
-    
-    // Add delivery time information if available
-    if (bestCarrier.deliveryTime) {
-      description += ` (Delivery: ${bestCarrier.deliveryTime} days)`;
+    // Calculate rates for ALL carriers
+    for (const carrier of carriers) {
+      try {
+        // Calculate parcels for this carrier
+        const maxWeightForCarrier = carrier.maxWeight * 1000; // Convert to grams
+        const parcelsForCarrier = splitParcels(items, maxWeightForCarrier);
+        
+        // Check if this carrier can handle all parcels
+        let canHandleAllParcels = true;
+        let totalCost = 0;
+        let deliveryTime = null;
+        
+        // Look for country-specific rates
+        const countryRate = carrier.countries?.find(c => c.countryCode === mappedCountryCode);
+        
+        // Process each parcel
+        for (const parcel of parcelsForCarrier) {
+          const weightKg = parcel.weight / 1000; // Convert grams to kg
+          
+          // Check if parcel exceeds carrier's weight limit
+          if (weightKg > carrier.maxWeight) {
+            canHandleAllParcels = false;
+            break;
+          }
+          
+          // Calculate cost for this parcel
+          let parcelCost = 0;
+          
+          // If we have country-specific rates, use them
+          if (countryRate && countryRate.weightRates && countryRate.weightRates.length > 0) {
+            const weightRate = countryRate.weightRates.find(rate => 
+              weightKg >= rate.minWeight && weightKg <= rate.maxWeight
+            );
+            
+            if (weightRate) {
+              parcelCost = weightRate.price;
+              deliveryTime = countryRate.deliveryTime;
+            } else {
+              // Fallback to basic rate if we can't find a specific weight rate
+              parcelCost = carrier.baseCost + (weightKg * carrier.costPerKg);
+            }
+          } else {
+            // Use basic rate
+            parcelCost = carrier.baseCost + (weightKg * carrier.costPerKg);
+          }
+          
+          totalCost += parcelCost;
+        }
+        
+        // Only add this carrier if it can handle all parcels
+        if (canHandleAllParcels) {
+          // Build service description
+          let description = `${totalWeight.toFixed(2)}kg in ${parcelsForCarrier.length} ${parcelsForCarrier.length === 1 ? 'parcel' : 'parcels'}`;
+          
+          // Add delivery time information if available
+          if (deliveryTime) {
+            description += ` (Delivery: ${deliveryTime} days)`;
+          }
+          
+          shippingRates.push({
+            service_name: `${carrier.name} (${parcelsForCarrier.length} ${parcelsForCarrier.length === 1 ? 'parcel' : 'parcels'})`,
+            service_code: carrier.name.toLowerCase().replace(/\s+/g, '_'),
+            total_price: Math.round(totalCost),
+            description: description,
+            currency: "EUR",
+          });
+        }
+      } catch (error) {
+        console.error(`Error calculating rates for carrier ${carrier.name}:`, error);
+      }
     }
     
-    // Format the response as expected by Shopify
-    const shippingRate = {
-      service_name: `${bestCarrier.name} (${parcels.length} ${parcels.length === 1 ? 'parcel' : 'parcels'})`,
-      service_code: bestCarrier.name.toLowerCase().replace(/\s+/g, '_'),
-      total_price: Math.round(bestCarrier.totalCost),
-      description: description,
-      currency: bestCarrier.currency || "USD",
-    };
+    console.log(`Returning ${shippingRates.length} shipping rates`);
     
-    console.log("Returning shipping rate:", shippingRate);
+    // If no carrier can handle the order, return a fallback rate
+    if (shippingRates.length === 0) {
+      return json({ 
+        rates: [{
+          service_name: "Standard Shipping",
+          service_code: "standard",
+          total_price: 1500, // €15.00
+          description: "Standard shipping (order exceeds carrier limits)",
+          currency: "EUR",
+        }] 
+      });
+    }
     
-    // Return the rates to Shopify
-    return json({ rates: [shippingRate] });
+    // Sort rates by price (cheapest first)
+    shippingRates.sort((a, b) => a.total_price - b.total_price);
+    
+    // Return all the rates to Shopify
+    return json({ rates: shippingRates });
   } catch (error) {
     console.error("Error calculating shipping rates:", error);
     // Return a fallback rate to avoid breaking the checkout
@@ -112,9 +174,9 @@ export async function action({ request }) {
       rates: [{
         service_name: "Standard Shipping",
         service_code: "standard",
-        total_price: 1000, // $10.00
+        total_price: 1000, // €10.00
         description: "Standard shipping (fallback)",
-        currency: "USD",
+        currency: "EUR",
       }] 
     });
   }

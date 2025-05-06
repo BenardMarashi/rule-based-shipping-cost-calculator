@@ -1,4 +1,4 @@
-// app/routes/app.shipping.jsx - Updated with force refresh for data updates
+// app/routes/app.shipping.jsx
 import { useState, useEffect } from "react";
 import {
   Page,
@@ -53,23 +53,69 @@ export const action = async ({ request }) => {
   
   try {
     if (action === "registerService") {
-      // Register a shipping carrier service with Shopify
-      const service = new admin.rest.CarrierService({
-        session: admin.session,
-      });
-      
-      service.name = "Shipping Cost Calculator";
-      service.callback_url = `${process.env.SHOPIFY_APP_URL}/api/shipping-rates`;
-      service.service_discovery = true;
-      
-      await service.save({
-        update: true,
-      });
-      
-      return json({ 
-        success: true, 
-        message: "Shipping service successfully registered with Shopify!" 
-      });
+      try {
+        // Manual registration instruction fallback
+        const appUrl = process.env.SHOPIFY_APP_URL || "";
+        
+        // Log debugging info
+        console.log("Admin object:", !!admin);
+        console.log("Session object:", !!admin?.session);
+        
+        // First check if we can access shop & token
+        if (!admin?.session?.shop) {
+          return json({ 
+            success: true, 
+            message: "Please create the shipping service manually in your Shopify Admin. Go to Settings → Shipping and delivery → Custom shipping rates → Create custom shipping rate. Use the URL: " + appUrl + "/api/shipping-rates" 
+          });
+        }
+        
+        // Try to register via REST API
+        try {
+          const shop = admin.session.shop;
+          const token = admin.session.accessToken;
+          
+          console.log("Registering with shop:", shop);
+          
+          const response = await fetch(`https://${shop}/admin/api/2025-04/carrier_services.json`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Shopify-Access-Token': token
+            },
+            body: JSON.stringify({
+              carrier_service: {
+                name: "Shipping Cost Calculator",
+                callback_url: `${appUrl}/api/shipping-rates`,
+                service_discovery: true,
+                active: true
+              }
+            })
+          });
+          
+          if (response.ok) {
+            return json({ 
+              success: true, 
+              message: "Shipping service successfully registered with Shopify!" 
+            });
+          } else {
+            const errorData = await response.json();
+            throw new Error(`API error: ${JSON.stringify(errorData)}`);
+          }
+        } catch (error) {
+          console.error("REST registration failed:", error);
+          
+          return json({ 
+            success: false, 
+            message: "Could not register shipping service automatically. Please create it manually in Shopify Admin → Settings → Shipping and delivery → Custom shipping rates." 
+          });
+        }
+      } catch (error) {
+        console.error("Error registering carrier service:", error);
+        return json({ 
+          success: false, 
+          message: `Error registering service: ${error.message}. Please check your app has "write_shipping" scope in shopify.app.toml.` 
+        });
+      }
     } 
     else if (action === "createCarrier") {
       // Create a new carrier
@@ -580,7 +626,13 @@ export default function ShippingCalculator() {
             title={actionData.message}
             status={actionData.success ? "success" : "critical"}
             onDismiss={() => setBannerVisible(false)}
-          />
+          >
+            {!actionData.success && (
+              <Text variant="bodyMd">
+                Make sure your app has the "write_shipping" scope in shopify.app.toml. If issues persist, try restarting your development server.
+              </Text>
+            )}
+          </Banner>
         )}
         
         <Layout>
@@ -681,7 +733,7 @@ export default function ShippingCalculator() {
                     <Badge>3</Badge> Optimal Carrier Selection
                   </Text>
                   <Text as="p" variant="bodyMd">
-                    The app calculates the shipping cost for each carrier and selects the most cost-effective option automatically.
+                    The app calculates the shipping cost for each carrier and shows all options to your customers at checkout.
                   </Text>
                 </BlockStack>
               </BlockStack>
