@@ -24,6 +24,7 @@ import { TitleBar } from "@shopify/app-bridge-react";
 import { useSubmit, useActionData, useLoaderData, useNavigation } from "@remix-run/react";
 import { json } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
+import fs from 'fs';
 import { 
   getCarriers, 
   createCarrier, 
@@ -54,66 +55,144 @@ export const action = async ({ request }) => {
   try {
     if (action === "registerService") {
       try {
-        // Manual registration instruction fallback
-        const appUrl = process.env.SHOPIFY_APP_URL || "";
-        
-        // Log debugging info
-        console.log("Admin object:", !!admin);
-        console.log("Session object:", !!admin?.session);
-        
-        // First check if we can access shop & token
-        if (!admin?.session?.shop) {
-          return json({ 
-            success: true, 
-            message: "Please create the shipping service manually in your Shopify Admin. Go to Settings → Shipping and delivery → Custom shipping rates → Create custom shipping rate. Use the URL: " + appUrl + "/api/shipping-rates" 
-          });
+        // Get the current app URL from environment or tunnel
+        let appUrl = process.env.SHOPIFY_APP_URL || "";
+        if (!appUrl) {
+          // Read from config if env var is not set
+          try {
+            const configPath = './shopify.app.toml';
+            if (fs.existsSync(configPath)) {
+              const configContent = fs.readFileSync(configPath, 'utf8');
+              const urlMatch = configContent.match(/application_url\s*=\s*"([^"]+)"/);
+              if (urlMatch && urlMatch[1]) {
+                appUrl = urlMatch[1];
+              }
+            }
+          } catch (configReadError) {
+            console.error("Error reading config:", configReadError);
+          }
         }
         
-        // Try to register via REST API
-        try {
-          const shop = admin.session.shop;
-          const token = admin.session.accessToken;
-          
-          console.log("Registering with shop:", shop);
-          
-          const response = await fetch(`https://${shop}/admin/api/2025-04/carrier_services.json`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Shopify-Access-Token': token
-            },
-            body: JSON.stringify({
-              carrier_service: {
-                name: "Shipping Cost Calculator",
-                callback_url: `${appUrl}/api/shipping-rates`,
-                service_discovery: true,
-                active: true
-              }
-            })
+        // Enhanced debugging for troubleshooting
+        console.log("App URL for registration:", appUrl);
+        console.log("Admin session details:", {
+          exists: !!admin,
+          hasSession: !!admin?.session,
+          hasShop: !!admin?.session?.shop,
+          hasToken: !!admin?.session?.accessToken,
+        });
+        
+        // First check if we can access shop & token
+        if (!admin?.session?.shop || !admin?.session?.accessToken) {
+          console.error("Missing required session data:", {
+            shop: admin?.session?.shop,
+            hasToken: !!admin?.session?.accessToken,
           });
-          
-          if (response.ok) {
-            return json({ 
-              success: true, 
-              message: "Shipping service successfully registered with Shopify!" 
-            });
-          } else {
-            const errorData = await response.json();
-            throw new Error(`API error: ${JSON.stringify(errorData)}`);
-          }
-        } catch (error) {
-          console.error("REST registration failed:", error);
           
           return json({ 
             success: false, 
-            message: "Could not register shipping service automatically. Please create it manually in Shopify Admin → Settings → Shipping and delivery → Custom shipping rates." 
+            message: "Authentication issues detected. Please try reloading the page to refresh your session." 
+          });
+        }
+        
+        // Try to register via REST API with retries
+        const shop = admin.session.shop;
+        const token = admin.session.accessToken;
+        let response = null;
+        let retryCount = 0;
+        const MAX_RETRIES = 3;
+        
+        console.log(`Attempting to register service with shop: ${shop}`);
+        
+        async function attemptRegistration() {
+          try {
+            const fetchResponse = await fetch(`https://${shop}/admin/api/2025-04/carrier_services.json`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Shopify-Access-Token': token
+              },
+              body: JSON.stringify({
+                carrier_service: {
+                  name: "Shipping Cost Calculator",
+                  callback_url: `${appUrl}/api/shipping-rates`,
+                  service_discovery: true,
+                  active: true
+                }
+              }),
+              // Increase timeout for the fetch request
+              timeout: 15000
+            });
+            
+            // Check if already exists (422 often means it exists)
+            if (fetchResponse.status === 422) {
+              const errorData = await fetchResponse.json();
+              console.log("Service might already exist:", errorData);
+              
+              if (errorData?.errors?.callback_url?.includes("has already been taken")) {
+                return { ok: true, json: () => ({ message: "Service already registered" }) };
+              }
+            }
+            
+            return fetchResponse;
+          } catch (fetchError) {
+            console.error(`Registration attempt ${retryCount + 1} failed:`, fetchError);
+            throw fetchError;
+          }
+        }
+        
+        while (!response?.ok && retryCount < MAX_RETRIES) {
+          try {
+            console.log(`Registration attempt ${retryCount + 1}/${MAX_RETRIES}`);
+            response = await attemptRegistration();
+            
+            if (!response.ok && retryCount < MAX_RETRIES - 1) {
+              retryCount++;
+              // Exponential backoff
+              const delay = 2000 * Math.pow(2, retryCount);
+              console.log(`Retrying in ${delay}ms...`);
+              await new Promise(resolve => setTimeout(resolve, delay));
+            }
+          } catch (retryError) {
+            console.error(`Retry ${retryCount + 1} error:`, retryError);
+            retryCount++;
+            
+            if (retryCount < MAX_RETRIES) {
+              // Exponential backoff on error too
+              const delay = 2000 * Math.pow(2, retryCount);
+              console.log(`Retrying after error in ${delay}ms...`);
+              await new Promise(resolve => setTimeout(resolve, delay));
+            }
+          }
+        }
+        
+        if (response?.ok) {
+          return json({ 
+            success: true, 
+            message: "Shipping service successfully registered with Shopify!" 
+          });
+        } else {
+          // Get detailed error message if possible
+          let errorMessage = "Registration failed";
+          try {
+            const errorData = await response?.json();
+            errorMessage = `API error: ${JSON.stringify(errorData)}`;
+          } catch (jsonError) {
+            errorMessage = `Status: ${response?.status} ${response?.statusText}`;
+          }
+          
+          console.error("Final registration error:", errorMessage);
+          
+          return json({ 
+            success: false, 
+            message: `Could not register shipping service automatically: ${errorMessage}. Check that your app has the "write_shipping" scope in shopify.app.toml.` 
           });
         }
       } catch (error) {
         console.error("Error registering carrier service:", error);
         return json({ 
           success: false, 
-          message: `Error registering service: ${error.message}. Please check your app has "write_shipping" scope in shopify.app.toml.` 
+          message: `Error during registration: ${error.message}. Please check your network connection and tunnel stability.` 
         });
       }
     } 
