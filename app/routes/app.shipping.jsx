@@ -57,6 +57,9 @@ export const action = async ({ request }) => {
       try {
         // Get the current app URL from environment or tunnel
         let appUrl = process.env.SHOPIFY_APP_URL || "";
+        
+        // Ensure we're using HTTPS
+        appUrl = appUrl.replace(/^http:/, "https:");
         if (!appUrl) {
           // Read from config if env var is not set
           try {
@@ -65,7 +68,7 @@ export const action = async ({ request }) => {
               const configContent = fs.readFileSync(configPath, 'utf8');
               const urlMatch = configContent.match(/application_url\s*=\s*"([^"]+)"/);
               if (urlMatch && urlMatch[1]) {
-                appUrl = urlMatch[1];
+                appUrl = urlMatch[1].replace(/^http:/, "https:");
               }
             }
           } catch (configReadError) {
@@ -75,6 +78,7 @@ export const action = async ({ request }) => {
         
         // Enhanced debugging for troubleshooting
         console.log("App URL for registration:", appUrl);
+        
         console.log("Admin session details:", {
           exists: !!admin,
           hasSession: !!admin?.session,
