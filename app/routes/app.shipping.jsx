@@ -53,282 +53,200 @@ export const action = async ({ request }) => {
   const action = formData.get("action");
   
   try {
-    if (action === "registerService") {
+// Replace the registerService action section in app.shipping.jsx with this:
+
+if (action === "registerService") {
+  try {
+    console.log("\n==== CARRIER SERVICE REGISTRATION STARTED ====");
+    
+    // STEP 1: Determine the application URL
+    let appUrl = process.env.SHOPIFY_APP_URL || "";
+    console.log("URL from environment:", appUrl);
+    
+    if (!appUrl) {
       try {
-        // Get the current app URL from environment or tunnel
-        let appUrl = process.env.SHOPIFY_APP_URL || "";
-        
-        // Ensure we're using HTTPS
-        appUrl = appUrl.replace(/^http:/, "https:");
-        if (!appUrl) {
-          // Read from config if env var is not set
-          try {
-            const configPath = './shopify.app.toml';
-            if (fs.existsSync(configPath)) {
-              const configContent = fs.readFileSync(configPath, 'utf8');
-              const urlMatch = configContent.match(/application_url\s*=\s*"([^"]+)"/);
-              if (urlMatch && urlMatch[1]) {
-                appUrl = urlMatch[1].replace(/^http:/, "https:");
-              }
-            }
-          } catch (configReadError) {
-            console.error("Error reading config:", configReadError);
+        console.log("Reading URL from shopify.app.toml config file...");
+        const configPath = './shopify.app.toml';
+        if (fs.existsSync(configPath)) {
+          const configContent = fs.readFileSync(configPath, 'utf8');
+          const urlMatch = configContent.match(/application_url\s*=\s*"([^"]+)"/);
+          if (urlMatch && urlMatch[1]) {
+            appUrl = urlMatch[1];
+            console.log("URL from config file:", appUrl);
           }
         }
-        
-        // Enhanced debugging for troubleshooting
-        console.log("App URL for registration:", appUrl);
-        
-        if (!admin) {
-          console.error("Admin object is undefined - authentication may have failed");
-          return json({ 
-            success: false, 
-            message: "Authentication failed. Please try reloading the page to refresh your session." 
-          });
+      } catch (configReadError) {
+        console.error("Error reading config:", configReadError);
+      }
+    }
+    
+    // Force HTTPS
+    appUrl = appUrl.replace(/^http:/, "https:");
+    
+    if (!appUrl) {
+      throw new Error("Could not determine application URL");
+    }
+    
+    console.log("Final application URL:", appUrl);
+    
+    // STEP 2: Get shop and access token
+    // Ensure we have the shop from the request regardless of how authentication is handled
+    const shop = admin?.session?.shop || formData.get("shop") || request.headers.get("x-shopify-shop-domain");
+    const accessToken = admin?.session?.accessToken;
+    
+    console.log("Shop:", shop);
+    console.log("Has access token:", !!accessToken);
+    
+    if (!shop) {
+      console.error("No shop found in the request");
+      return json({ 
+        success: false, 
+        message: "No shop found. Please try reloading the page." 
+      });
+    }
+    
+    if (!accessToken) {
+      console.error("No access token available");
+      // Try to force re-authentication
+      return json({ 
+        success: false, 
+        message: "Authentication failed. Please reload the page to refresh your session.",
+        requireReauth: true
+      });
+    }
+    
+    // STEP 3: Set up the callback URL for shipping rates
+    const callbackUrl = `${appUrl}/api/shipping-rates`;
+    console.log("Shipping rates callback URL:", callbackUrl);
+    
+    // STEP 4: Use REST API directly since we already have the shop and token
+    console.log(`Attempting to register service with REST API - shop: ${shop}`);
+    
+    try {
+      // First, check if the service already exists
+      const existingServicesResponse = await fetch(`https://${shop}/admin/api/2025-01/carrier_services.json`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': accessToken
         }
+      });
+      
+      if (existingServicesResponse.ok) {
+        const existingServices = await existingServicesResponse.json();
+        console.log("Existing carrier services:", JSON.stringify(existingServices, null, 2));
         
-        console.log("Admin session details:", {
-          exists: !!admin,
-          hasSession: !!admin?.session,
-          hasShop: !!admin?.session?.shop,
-          hasToken: !!admin?.session?.accessToken?.length > 0
-        });
+        // Check if our service already exists
+        const existingService = existingServices.carrier_services?.find(
+          service => service.name === "Shipping Cost Calculator" || 
+                     service.callback_url === callbackUrl
+        );
         
-        // First check if we can access shop & token
-        if (!admin?.session?.shop || !admin?.session?.accessToken) {
-          console.error("Missing required session data:", {
-            shop: admin?.session?.shop,
-            hasToken: !!admin?.session?.accessToken
+        if (existingService) {
+          console.log("Service already exists, updating...");
+          
+          // Update existing service
+          const updateResponse = await fetch(`https://${shop}/admin/api/2025-01/carrier_services/${existingService.id}.json`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Shopify-Access-Token': accessToken
+            },
+            body: JSON.stringify({
+              carrier_service: {
+                id: existingService.id,
+                callback_url: callbackUrl,
+                service_discovery: true,
+                active: true
+              }
+            })
           });
           
-          return json({ 
-            success: false, 
-            message: "Authentication issues detected. Please try reloading the page to refresh your session." 
-          });
-        }
-        
-        // Use GraphQL to register the carrier service
-        const callbackUrl = `${appUrl}/api/shipping-rates`;
-        console.log(`Attempting to register service with GraphQL, callback URL: ${callbackUrl}`);
-
-        try {
-          // First check if the carrier service already exists
-          const existingServiceQuery = await admin.graphql(`
-            query GetCarrierServices {
-              carrierServices {
-                edges {
-                  node {
-                    id
-                    name
-                    callbackUrl
-                    active
-                  }
-                }
-              }
-            }
-          `);
-
-          const existingServices = await existingServiceQuery.json();
-          console.log("Existing carrier services:", JSON.stringify(existingServices, null, 2));
-
-          // Check if our service already exists
-          const existingService = existingServices?.data?.carrierServices?.edges?.find(
-            edge => edge.node.name === "Shipping Cost Calculator" || 
-                  edge.node.callbackUrl === callbackUrl
-          );
-
-          if (existingService) {
-            console.log("Carrier service already exists:", existingService.node);
-            // Optionally update the existing service
-            const updateResponse = await admin.graphql(`
-              mutation carrierServiceUpdate($id: ID!, $callbackUrl: URL!) {
-                carrierServiceUpdate(id: "${existingService.node.id}", carrierService: {
-                  callbackUrl: $callbackUrl,
-                  active: true
-                }) {
-                  carrierService {
-                    id
-                    name
-                    callbackUrl
-                    active
-                  }
-                  userErrors {
-                    field
-                    message
-                  }
-                }
-              }
-            `, {
-              variables: {
-                id: existingService.node.id,
-                callbackUrl: callbackUrl
-              }
-            });
-
-            const updateResult = await updateResponse.json();
-            console.log("Update result:", JSON.stringify(updateResult, null, 2));
-
-            if (updateResult?.data?.carrierServiceUpdate?.userErrors?.length > 0) {
-              console.error("GraphQL errors during update:", updateResult.data.carrierServiceUpdate.userErrors);
-              return json({ 
-                success: false, 
-                message: `Could not update existing service: ${updateResult.data.carrierServiceUpdate.userErrors[0].message}` 
-              });
-            }
-
+          if (updateResponse.ok) {
+            console.log("Service updated successfully");
+            console.log("==== CARRIER SERVICE REGISTRATION COMPLETED SUCCESSFULLY (UPDATED) ====\n");
             return json({ 
               success: true, 
               message: "Shipping service already registered and has been updated!" 
             });
-          }
-
-          // Create a new carrier service if it doesn't exist
-          const createResponse = await admin.graphql(`
-            mutation carrierServiceCreate {
-              carrierServiceCreate(carrierService: {
-                name: "Shipping Cost Calculator",
-                callbackUrl: "${callbackUrl}",
-                serviceDiscovery: true,
-                active: true
-              }) {
-                carrierService {
-                  id
-                  name
-                  callbackUrl
-                  active
-                }
-                userErrors {
-                  field
-                  message
-                }
-              }
-            }
-          `);
-
-          const createResult = await createResponse.json();
-          console.log("Creation result:", JSON.stringify(createResult, null, 2));
-
-          if (createResult?.data?.carrierServiceCreate?.userErrors?.length > 0) {
-            console.error("GraphQL errors during creation:", createResult.data.carrierServiceCreate.userErrors);
-            return json({ 
-              success: false, 
-              message: `Could not register service: ${createResult.data.carrierServiceCreate.userErrors[0].message}` 
-            });
-          }
-
-          return json({ 
-            success: true, 
-            message: "Shipping service successfully registered with Shopify!" 
-          });
-        } catch (graphqlError) {
-          console.error("GraphQL error:", graphqlError);
-          
-          // If GraphQL fails, fall back to REST API
-          console.log("Falling back to REST API...");
-          
-          // Try to register via REST API with retries
-          const shop = admin.session.shop;
-          const token = admin.session.accessToken;
-          let response = null;
-          let retryCount = 0;
-          const MAX_RETRIES = 3;
-          
-          console.log(`Attempting to register service with REST API - shop: ${shop}`);
-          
-          async function attemptRegistration() {
-            try {
-              // Use January25 API version (2025-01) to match app configuration
-              const fetchResponse = await fetch(`https://${shop}/admin/api/2025-01/carrier_services.json`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'X-Shopify-Access-Token': token
-                },
-                body: JSON.stringify({
-                  carrier_service: {
-                    name: "Shipping Cost Calculator",
-                    callback_url: `${appUrl}/api/shipping-rates`,
-                    service_discovery: true,
-                    active: true
-                  }
-                }),
-                // Increase timeout for the fetch request
-                timeout: 15000
-              });
-              
-              // Check if already exists (422 often means it exists)
-              if (fetchResponse.status === 422) {
-                const errorData = await fetchResponse.json();
-                console.log("Service might already exist:", errorData);
-                
-                if (errorData?.errors?.callback_url?.includes("has already been taken")) {
-                  return { ok: true, json: () => ({ message: "Service already registered" }) };
-                }
-              }
-              
-              return fetchResponse;
-            } catch (fetchError) {
-              console.error(`Registration attempt ${retryCount + 1} failed:`, fetchError);
-              throw fetchError;
-            }
-          }
-          
-          while (!response?.ok && retryCount < MAX_RETRIES) {
-            try {
-              console.log(`Registration attempt ${retryCount + 1}/${MAX_RETRIES}`);
-              response = await attemptRegistration();
-              
-              if (!response.ok && retryCount < MAX_RETRIES - 1) {
-                retryCount++;
-                // Exponential backoff
-                const delay = 2000 * Math.pow(2, retryCount);
-                console.log(`Retrying in ${delay}ms...`);
-                await new Promise(resolve => setTimeout(resolve, delay));
-              }
-            } catch (retryError) {
-              console.error(`Retry ${retryCount + 1} error:`, retryError);
-              retryCount++;
-              
-              if (retryCount < MAX_RETRIES) {
-                // Exponential backoff on error too
-                const delay = 2000 * Math.pow(2, retryCount);
-                console.log(`Retrying after error in ${delay}ms...`);
-                await new Promise(resolve => setTimeout(resolve, delay));
-              }
-            }
-          }
-          
-          if (response?.ok) {
-            return json({ 
-              success: true, 
-              message: "Shipping service successfully registered with Shopify using REST API!" 
-            });
           } else {
-            // Get detailed error message if possible
-            let errorMessage = "Registration failed";
-            try {
-              const errorData = await response?.json();
-              errorMessage = `API error: ${JSON.stringify(errorData)}`;
-            } catch (jsonError) {
-              errorMessage = `Status: ${response?.status} ${response?.statusText}`;
-            }
-            
-            console.error("Final registration error:", errorMessage);
-            
+            const errorData = await updateResponse.json();
+            console.error("Error updating service:", errorData);
             return json({ 
               success: false, 
-              message: `Could not register shipping service: ${errorMessage}. Check that your app has the "write_shipping" scope in shopify.app.toml.` 
+              message: `Failed to update service: ${JSON.stringify(errorData)}` 
             });
           }
         }
-      } catch (error) {
-        console.error("Error registering carrier service:", error);
+      }
+      
+      // Create new service if it doesn't exist
+      console.log("Creating new carrier service...");
+      const createResponse = await fetch(`https://${shop}/admin/api/2025-01/carrier_services.json`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': accessToken
+        },
+        body: JSON.stringify({
+          carrier_service: {
+            name: "Shipping Cost Calculator",
+            callback_url: callbackUrl,
+            service_discovery: true,
+            active: true
+          }
+        })
+      });
+      
+      if (createResponse.ok) {
+        const responseData = await createResponse.json();
+        console.log("Service created successfully:", responseData);
+        console.log("==== CARRIER SERVICE REGISTRATION COMPLETED SUCCESSFULLY (CREATED) ====\n");
+        return json({ 
+          success: true, 
+          message: "Shipping service successfully registered with Shopify!" 
+        });
+      } else {
+        let errorMessage = "Registration failed";
+        try {
+          const errorData = await createResponse.json();
+          errorMessage = `API error: ${JSON.stringify(errorData)}`;
+        } catch (jsonError) {
+          errorMessage = `Status: ${createResponse.status} ${createResponse.statusText}`;
+        }
+        
+        console.error("Final registration error:", errorMessage);
+        console.log("==== CARRIER SERVICE REGISTRATION FAILED ====\n");
+        
+        // If we get a 422 error, it might be because the service already exists
+        if (createResponse.status === 422) {
+          return json({ 
+            success: true, 
+            message: "Service may already be registered. Please check your Shopify admin." 
+          });
+        }
+        
         return json({ 
           success: false, 
-          message: `Error during registration: ${error.message}. Please check your network connection and application URL.` 
+          message: `Could not register shipping service: ${errorMessage}. Check that your app has the "write_shipping" scope in shopify.app.toml.` 
         });
       }
-    } 
+    } catch (apiError) {
+      console.error("API error:", apiError);
+      return json({ 
+        success: false, 
+        message: `API error: ${apiError.message}. Please check your network connection.` 
+      });
+    }
+  } catch (error) {
+    console.error("Error registering carrier service:", error);
+    console.log("==== CARRIER SERVICE REGISTRATION FAILED ====\n");
+    return json({ 
+      success: false, 
+      message: `Error during registration: ${error.message}. Please check your network connection and application URL.` 
+    });
+  }
+}
     else if (action === "createCarrier") {
       // Create a new carrier
       const name = formData.get("name");
@@ -859,17 +777,29 @@ export default function ShippingCalculator() {
                   It automatically splits heavy orders into multiple parcels when needed, and selects the most cost-effective shipping option.
                 </Text>
                 
-                <CalloutCard
-                  title="Get started with your shipping calculator"
-                  illustration="https://cdn.shopify.com/s/assets/admin/checkout/settings-customizecart-705f57c725ac05be5a34ec20c05b94298cb8afd10aac7bd9c7ad02030f48cfa0.svg"
-                  primaryAction={{
-                    content: 'Register Shipping Service',
-                    onAction: handleRegisterCarrier,
-                    loading: isLoading && navigation.formData?.get("action") === "registerService"
-                  }}
-                >
-                  <p>Before you can use the shipping calculator, you need to register it with Shopify. This will allow the app to provide shipping rates during checkout.</p>
-                </CalloutCard>
+                // Find the section in app.shipping.jsx that has the register button and replace it with this:
+
+<CalloutCard
+  title="Get started with your shipping calculator"
+  illustration="https://cdn.shopify.com/s/assets/admin/checkout/settings-customizecart-705f57c725ac05be5a34ec20c05b94298cb8afd10aac7bd9c7ad02030f48cfa0.svg"
+  primaryAction={{
+    content: 'Register Shipping Service',
+    onAction: handleRegisterCarrier,
+    loading: isLoading && navigation.formData?.get("action") === "registerService"
+  }}
+>
+  <p>Before you can use the shipping calculator, you need to register it with Shopify. This will allow the app to provide shipping rates during checkout.</p>
+  {actionData?.requireReauth && (
+    <div style={{ marginTop: '10px' }}>
+      <Banner status="warning">
+        <p>Authentication token may have expired. Please click the button below to refresh your session, then try registering again.</p>
+        <div style={{ marginTop: '10px' }}>
+          <Button onClick={() => window.location.reload()}>Refresh Session</Button>
+        </div>
+      </Banner>
+    </div>
+  )}
+</CalloutCard>
               </BlockStack>
             </Card>
           </Layout.Section>

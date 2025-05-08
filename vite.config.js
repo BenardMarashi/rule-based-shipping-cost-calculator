@@ -31,6 +31,13 @@ export default defineConfig({
     fs: {
       allow: ["app", "node_modules"],
     },
+    // Add this section to allow your Cloudflare tunnel domain
+    allowedHosts: [
+      // Allow all .trycloudflare.com domains
+      '.trycloudflare.com',
+      // Explicitly add your current tunnel domain
+      'moore-texts-ratio-likelihood.trycloudflare.com'
+    ]
   },
   plugins: [
     remix({

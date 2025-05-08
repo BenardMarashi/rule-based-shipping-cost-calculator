@@ -3,7 +3,7 @@
 client_id = "923a2370d32ef8ec9424ed8ab53e8bd0"
 name = "shipping-cost-calculator"
 handle = "shipping-cost-calculator-1"
-application_url = "https://sheep-garbage-modelling-punk.trycloudflare.com"
+application_url = "https://moore-texts-ratio-likelihood.trycloudflare.com"
 embedded = true
 
 [build]
@@ -11,7 +11,7 @@ include_config_on_deploy = true
 automatically_update_urls_on_dev = true
 
 [webhooks]
-api_version = "2025-04"
+api_version = "2025-01"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
@@ -19,9 +19,9 @@ scopes = "write_products,write_shipping"
 
 [auth]
 redirect_urls = [
-  "https://sheep-garbage-modelling-punk.trycloudflare.com/auth/callback",
-  "https://sheep-garbage-modelling-punk.trycloudflare.com/auth/shopify/callback",
-  "https://sheep-garbage-modelling-punk.trycloudflare.com/api/auth/callback"
+  "https://moore-texts-ratio-likelihood.trycloudflare.com/auth/callback",
+  "https://moore-texts-ratio-likelihood.trycloudflare.com/auth/shopify/callback",
+  "https://moore-texts-ratio-likelihood.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]
