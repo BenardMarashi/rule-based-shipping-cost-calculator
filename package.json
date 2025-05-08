@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "build": "remix vite:build",
-    "dev": "shopify app dev --no-tunnel",
+    "dev": "SHOPIFY_FLAG_SKIP_TUNNEL=1 shopify app dev",
     "dev:tunnel": "node dev.js",
     "config:link": "shopify app config link",
     "generate": "shopify app generate",

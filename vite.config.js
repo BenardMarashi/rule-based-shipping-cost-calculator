@@ -36,7 +36,7 @@ export default defineConfig({
       // Allow all .trycloudflare.com domains
       '.trycloudflare.com',
       // Explicitly add your current tunnel domain
-      'accepted-dat-memories-qualities.trycloudflare.com'
+      'inns-ons-practitioner-diane.trycloudflare.com'
     ]
   },
   plugins: [

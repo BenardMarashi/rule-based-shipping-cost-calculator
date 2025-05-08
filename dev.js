@@ -49,6 +49,33 @@ async function startDevelopment() {
         
         fs.writeFileSync('.env', envContent);
         console.log('✅ Updated .env file with tunnel URL');
+        
+        // ADDED: Update shopify.app.toml
+        try {
+          const tomlPath = './shopify.app.toml';
+          let tomlContent = fs.readFileSync(tomlPath, 'utf8');
+          
+          // Update application_url
+          tomlContent = tomlContent.replace(/application_url\s*=\s*"[^"]*"/, `application_url = "${tunnelUrl}"`);
+          
+          // Update redirect_urls
+          const redirectUrlsRegex = /redirect_urls\s*=\s*\[[\s\S]*?\]/;
+          const redirectUrlsMatch = tomlContent.match(redirectUrlsRegex);
+          
+          if (redirectUrlsMatch) {
+            const newRedirectUrls = `redirect_urls = [
+  "${tunnelUrl}/auth/callback",
+  "${tunnelUrl}/auth/shopify/callback",
+  "${tunnelUrl}/api/auth/callback"
+]`;
+            tomlContent = tomlContent.replace(redirectUrlsRegex, newRedirectUrls);
+          }
+          
+          fs.writeFileSync(tomlPath, tomlContent);
+          console.log('✅ Updated shopify.app.toml file with tunnel URL');
+        } catch (err) {
+          console.error('Error updating shopify.app.toml:', err);
+        }
       } catch (err) {
         console.error('Error updating .env:', err);
       }
@@ -59,9 +86,9 @@ async function startDevelopment() {
   console.log('Waiting for tunnel to initialize (10 seconds)...');
   await setTimeout(10000);
   
-  // Now start the development server
+  // Now start the development server, using the direct remix command
   console.log('Starting Remix development server...');
-  const devServer = spawn(npmCmd, ['run', 'vite'], {
+  const devServer = spawn(npmCmd, ['run', 'remix'], {
     stdio: 'inherit',
     shell: isWindows,
     env: { ...process.env, PORT: 3000 }
