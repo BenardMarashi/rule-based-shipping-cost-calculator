@@ -1,44 +1,82 @@
-// simplified-dev.js
+// fixed-dev.js
 import { spawn } from 'child_process';
 import { setTimeout } from 'timers/promises';
+import fs from 'fs';
 
 async function startDevelopment() {
-  console.log('Starting Shopify app development server...');
+  console.log('Starting development environment...');
   
   const isWindows = process.platform === 'win32';
   const npmCmd = isWindows ? 'npm.cmd' : 'npm';
   const cloudflaredCmd = isWindows ? 'cloudflared.exe' : 'cloudflared';
   
-  // Start the app in development mode first
-  const shopifyApp = spawn(npmCmd, ['run', 'dev'], {
-    stdio: 'inherit',
-    shell: isWindows
-  });
-  
-  // Wait for the app to start
-  console.log('Waiting for app to initialize (20 seconds)...');
-  await setTimeout(20000);
-  
-  // Start a basic Cloudflare tunnel
+  // First, start the Cloudflare tunnel
   console.log('Starting Cloudflare tunnel...');
   const cloudflare = spawn(cloudflaredCmd, [
     'tunnel', 
     '--url', 'http://localhost:3000'
   ], {
-    stdio: 'inherit',
+    stdio: ['ignore', 'pipe', 'inherit'],
     shell: isWindows
+  });
+  
+  // Wait for tunnel URL
+  let tunnelUrl = null;
+  cloudflare.stdout.on('data', (data) => {
+    const output = data.toString();
+    console.log(output);
+    
+    // Extract tunnel URL
+    const match = output.match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/);
+    if (match && !tunnelUrl) {
+      tunnelUrl = match[0];
+      console.log(`\n✅ Tunnel URL: ${tunnelUrl}`);
+      
+      // Update .env file
+      try {
+        let envContent = '';
+        try {
+          envContent = fs.readFileSync('.env', 'utf8');
+        } catch (err) {
+          // File doesn't exist
+        }
+        
+        if (envContent.includes('SHOPIFY_APP_URL=')) {
+          envContent = envContent.replace(/SHOPIFY_APP_URL=.*/, `SHOPIFY_APP_URL=${tunnelUrl}`);
+        } else {
+          envContent += `\nSHOPIFY_APP_URL=${tunnelUrl}`;
+        }
+        
+        fs.writeFileSync('.env', envContent);
+        console.log('✅ Updated .env file with tunnel URL');
+      } catch (err) {
+        console.error('Error updating .env:', err);
+      }
+    }
+  });
+  
+  // Wait for the tunnel to start
+  console.log('Waiting for tunnel to initialize (10 seconds)...');
+  await setTimeout(10000);
+  
+  // Now start the development server
+  console.log('Starting Remix development server...');
+  const devServer = spawn(npmCmd, ['run', 'vite'], {
+    stdio: 'inherit',
+    shell: isWindows,
+    env: { ...process.env, PORT: 3000 }
   });
   
   // Handle process termination
   process.on('SIGINT', () => {
     console.log('Shutting down...');
     cloudflare.kill();
-    shopifyApp.kill();
+    devServer.kill();
     process.exit(0);
   });
   
-  shopifyApp.on('exit', (code) => {
-    console.log(`Shopify app exited with code ${code}`);
+  devServer.on('exit', (code) => {
+    console.log(`Development server exited with code ${code}`);
     cloudflare.kill();
     process.exit(code);
   });

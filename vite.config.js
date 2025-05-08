@@ -36,7 +36,7 @@ export default defineConfig({
       // Allow all .trycloudflare.com domains
       '.trycloudflare.com',
       // Explicitly add your current tunnel domain
-      'moore-texts-ratio-likelihood.trycloudflare.com'
+      'accepted-dat-memories-qualities.trycloudflare.com'
     ]
   },
   plugins: [

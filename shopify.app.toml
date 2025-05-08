@@ -3,12 +3,12 @@
 client_id = "923a2370d32ef8ec9424ed8ab53e8bd0"
 name = "shipping-cost-calculator"
 handle = "shipping-cost-calculator-1"
-application_url = "https://moore-texts-ratio-likelihood.trycloudflare.com"
+application_url = "https://accepted-dat-memories-qualities.trycloudflare.com"
 embedded = true
 
 [build]
 include_config_on_deploy = true
-automatically_update_urls_on_dev = true
+automatically_update_urls_on_dev = false
 
 [webhooks]
 api_version = "2025-01"
@@ -19,9 +19,9 @@ scopes = "write_products,write_shipping"
 
 [auth]
 redirect_urls = [
-  "https://moore-texts-ratio-likelihood.trycloudflare.com/auth/callback",
-  "https://moore-texts-ratio-likelihood.trycloudflare.com/auth/shopify/callback",
-  "https://moore-texts-ratio-likelihood.trycloudflare.com/api/auth/callback"
+  "https://accepted-dat-memories-qualities.trycloudflare.com/auth/callback",
+  "https://accepted-dat-memories-qualities.trycloudflare.com/auth/shopify/callback",
+  "https://accepted-dat-memories-qualities.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]
