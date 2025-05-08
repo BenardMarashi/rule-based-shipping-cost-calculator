@@ -1,7 +1,39 @@
-// app/routes/api.shipping-rates.jsx - Updated to show multiple carriers
+// app/routes/api.shipping-rates.jsx
 import { json } from "@remix-run/node";
 import { splitParcels } from "../services/shipping-calculator.server";
 import { getCarriers } from "../models/carrier.server";
+
+// Add CORS headers to allow Shopify to access this endpoint
+export const headers = ({ loaderHeaders, parentHeaders }) => {
+  return {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, X-Shopify-Access-Token",
+    "Access-Control-Max-Age": "86400",
+  };
+};
+
+// Handle OPTIONS requests for CORS preflight
+export async function loader({ request }) {
+  if (request.method === "OPTIONS") {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, X-Shopify-Access-Token",
+        "Access-Control-Max-Age": "86400",
+      },
+    });
+  }
+
+  // Basic health check for GET requests
+  return json({
+    status: "ok",
+    service: "shipping-cost-calculator",
+    timestamp: new Date().toISOString()
+  });
+}
 
 // Map from Shopify country codes to our country codes
 const COUNTRY_CODE_MAP = {
@@ -36,6 +68,10 @@ const COUNTRY_CODE_MAP = {
 
 export async function action({ request }) {
   try {
+    // Log request method, headers, and content type for debugging
+    console.log(`Received ${request.method} request to shipping rates endpoint`);
+    console.log("Headers:", Object.fromEntries(request.headers.entries()));
+
     // Parse the rate request from Shopify
     const data = await request.json();
     console.log("Received shipping rate request:", JSON.stringify(data, null, 2));
