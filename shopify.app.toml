@@ -3,7 +3,7 @@
 client_id = "923a2370d32ef8ec9424ed8ab53e8bd0"
 name = "shipping-cost-calculator"
 handle = "shipping-cost-calculator-1"
-application_url = "https://inns-ons-practitioner-diane.trycloudflare.com"
+application_url = "https://encyclopedia-obesity-bradford-bhutan.trycloudflare.com"
 embedded = true
 
 [build]
@@ -19,9 +19,9 @@ scopes = "write_products,write_shipping"
 
 [auth]
 redirect_urls = [
-  "https://inns-ons-practitioner-diane.trycloudflare.com/auth/callback",
-  "https://inns-ons-practitioner-diane.trycloudflare.com/auth/shopify/callback",
-  "https://inns-ons-practitioner-diane.trycloudflare.com/api/auth/callback"
+  "https://encyclopedia-obesity-bradford-bhutan.trycloudflare.com/auth/callback",
+  "https://encyclopedia-obesity-bradford-bhutan.trycloudflare.com/auth/shopify/callback",
+  "https://encyclopedia-obesity-bradford-bhutan.trycloudflare.com/api/auth/callback"
 ]
 
 [pos]

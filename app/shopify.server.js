@@ -65,7 +65,7 @@ const apiKey = process.env.SHOPIFY_API_KEY || "923a2370d32ef8ec9424ed8ab53e8bd0"
 const apiSecret = process.env.SHOPIFY_API_SECRET || "";
 
 // Get app URL from environment or default to the one in the config
-const appUrl = process.env.SHOPIFY_APP_URL || "https://3.76.235.152";
+const appUrl = process.env.SHOPIFY_APP_URL || "";
 
 console.log("App configuration:", {
   apiKey: apiKey.substring(0, 6) + "...", // Log partial key for security

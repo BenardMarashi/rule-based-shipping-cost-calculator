@@ -36,7 +36,7 @@ export default defineConfig({
       // Allow all .trycloudflare.com domains
       '.trycloudflare.com',
       // Explicitly add your current tunnel domain
-      'inns-ons-practitioner-diane.trycloudflare.com'
+      'encyclopedia-obesity-bradford-bhutan.trycloudflare.com'
     ]
   },
   plugins: [
